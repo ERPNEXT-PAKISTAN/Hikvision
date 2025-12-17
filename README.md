@@ -1,4 +1,51 @@
-## Biometric Integration
+<p align="center">
+ <img width="432" height="104" alt="image" src="https://github.com/user-attachments/assets/d3a27cb5-7d50-4c48-a22a-a5ef218d1aae" />
+ <img width="427" height="118" alt="download" src="https://github.com/user-attachments/assets/b6b12445-4a2b-4f34-92c4-7819e5c491cc" />
+ 
+</p>
+
+<h1 align="center">Biometric Integration</h1>
+
+<p align="center">
+  <b>Seamlessly integrate Hikvision data with ERPNext using Python</b>
+</p>
+
+---
+
+## 🚀 Quick Start
+
+---
+
+#### Step-1 Go to your bench folder
+```bash
+cd ~/frappe-bench
+```
+
+#### Step-2 Download the app from GitHub
+```bash
+bench get-app https://github.com/ERPNEXT-PAKISTAN/Hikvision.git
+```
+
+#### Step-3 Install the app on your ERPNext site
+```bash
+bench --site site1.local install-app biometric_integration
+```
+
+#### Step-4 Run migrations and restart
+```bash
+Run migrations and restart
+```
+
+#### Step-5 Verify it installed
+```bash
+bench --site site1.local list-apps
+```
+`You should see biometric_integration in the list.`
+
+---
+
+
+
 
 Integrate your Hikvision Device
 
