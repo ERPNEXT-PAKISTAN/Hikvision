@@ -1,0 +1,25 @@
+# Frappe/ERPNext noise
+*.pyc
+__pycache__/
+*.log
+*.DS_Store
+
+# Bench environment
+env/
+node_modules/
+sites/
+tags
+*.swp
+
+# compiled assets
+*.css.map
+*.js.map
+
+# IDE files
+.vscode/
+.idea/
+
+# Cache
+*.cache
+*.pid
+

@@ -1,0 +1,7 @@
+[pre_model_sync]
+
+[post_model_sync]
+biometric_integration.patches.v1_1_add_punch_sync_fields
+biometric_integration.patches.v1_2_add_device_id_fields
+biometric_integration.patches.v1_3_adjust_devices_section
+
