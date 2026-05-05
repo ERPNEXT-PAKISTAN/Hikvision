@@ -37,29 +37,44 @@ def _workspace_content():
                 "type": "shortcut",
                 "data": {"shortcut_name": "Employee Checkin", "col": 3},
             },
+            {
+                "id": "biometric-shortcut-daily-report",
+                "type": "shortcut",
+                "data": {"shortcut_name": "Daily Report", "col": 3},
+            },
+            {
+                "id": "biometric-shortcut-monthly-report",
+                "type": "shortcut",
+                "data": {"shortcut_name": "Monthly Report", "col": 3},
+            },
+            {
+                "id": "biometric-shortcut-device-list",
+                "type": "shortcut",
+                "data": {"shortcut_name": "Devices", "col": 3},
+            },
             {"id": "biometric-spacer-1", "type": "spacer", "data": {"col": 12}},
             {
                 "id": "biometric-header-2",
                 "type": "header",
                 "data": {
-                    "text": "<span class=\"h4\"><b>Reports and Setup</b></span>",
+                    "text": "<span class=\"h4\"><b>Operations and Setup</b></span>",
                     "col": 12,
                 },
             },
             {
-                "id": "biometric-card-masters",
+                "id": "biometric-card-operations",
                 "type": "card",
-                "data": {"card_name": "Masters", "col": 4},
+                "data": {"card_name": "Operations", "col": 4},
+            },
+            {
+                "id": "biometric-card-configuration",
+                "type": "card",
+                "data": {"card_name": "Configuration", "col": 4},
             },
             {
                 "id": "biometric-card-reports",
                 "type": "card",
                 "data": {"card_name": "Reports", "col": 4},
-            },
-            {
-                "id": "biometric-card-tools",
-                "type": "card",
-                "data": {"card_name": "Tools", "col": 4},
             },
         ]
     )
@@ -122,19 +137,40 @@ def create_or_update_biometric_workspace():
             "color": "Grey",
         },
     )
+    ws.append(
+        "shortcuts",
+        {
+            "type": "Report",
+            "label": "Daily Report",
+            "link_to": "Biometric Daily Report",
+            "color": "Blue",
+            "report_ref_doctype": "Biometric Attendance Log",
+        },
+    )
+    ws.append(
+        "shortcuts",
+        {
+            "type": "Report",
+            "label": "Monthly Report",
+            "link_to": "Biometric Monthly Report",
+            "color": "Purple",
+            "report_ref_doctype": "Biometric Attendance Log",
+        },
+    )
+    ws.append(
+        "shortcuts",
+        {
+            "type": "DocType",
+            "label": "Devices",
+            "link_to": "Biometric Device",
+            "doc_view": "List",
+            "color": "Dark Blue",
+        },
+    )
 
     ws.set("links", [])
 
-    ws.append("links", {"type": "Card Break", "label": "Masters"})
-    ws.append(
-        "links",
-        {
-            "type": "Link",
-            "label": "Biometric Integration Settings",
-            "link_type": "DocType",
-            "link_to": "Biometric Integration Settings",
-        },
-    )
+    ws.append("links", {"type": "Card Break", "label": "Operations"})
     ws.append(
         "links",
         {
@@ -151,6 +187,26 @@ def create_or_update_biometric_workspace():
             "label": "Biometric Manual Punch",
             "link_type": "DocType",
             "link_to": "Biometric Manual Punch",
+        },
+    )
+    ws.append(
+        "links",
+        {
+            "type": "Link",
+            "label": "Employee Checkin",
+            "link_type": "DocType",
+            "link_to": "Employee Checkin",
+        },
+    )
+
+    ws.append("links", {"type": "Card Break", "label": "Configuration"})
+    ws.append(
+        "links",
+        {
+            "type": "Link",
+            "label": "Biometric Integration Settings",
+            "link_type": "DocType",
+            "link_to": "Biometric Integration Settings",
         },
     )
     ws.append(
@@ -193,17 +249,6 @@ def create_or_update_biometric_workspace():
             "link_to": "Biometric Monthly Report",
             "report_ref_doctype": "Biometric Attendance Log",
             "is_query_report": 0,
-        },
-    )
-
-    ws.append("links", {"type": "Card Break", "label": "Tools"})
-    ws.append(
-        "links",
-        {
-            "type": "Link",
-            "label": "Employee Checkin",
-            "link_type": "DocType",
-            "link_to": "Employee Checkin",
         },
     )
 
