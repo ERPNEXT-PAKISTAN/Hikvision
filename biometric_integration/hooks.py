@@ -26,3 +26,11 @@ scheduler_events = {
         ]
     }
 }
+
+# Export app-owned Workspace so it is versioned in Git.
+fixtures = [
+    {
+        "dt": "Workspace",
+        "filters": [["name", "=", "Biometric Integration"]],
+    }
+]

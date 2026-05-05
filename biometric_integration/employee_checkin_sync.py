@@ -57,6 +57,13 @@ def sync_punches_to_employee_checkin():
     """
 
     # Check optional columns exist (DB-level)
+    punch_has_synced_flag = frappe.db.has_column(
+        "Biometric Attendance Punch Table", "synced_to_employee_checkin"
+    )
+    punch_has_device_id = frappe.db.has_column(
+        "Biometric Attendance Punch Table", "device_id"
+    )
+    log_has_device_id = frappe.db.has_column("Biometric Attendance Log", "device_id")
     punch_has_employee_checkin = frappe.db.has_column(
         "Biometric Attendance Punch Table", "employee_checkin"
     )
@@ -75,26 +82,52 @@ def sync_punches_to_employee_checkin():
     # Fetch geolocation once for this sync
     latitude, longitude = get_geolocation()
 
-    # Get all unsynced punches joined with their parent logs
-    punches = frappe.db.sql(
-        """
-        SELECT
-            p.name AS punch_name,
-            p.punch_time,
-            p.punch_type,
-            COALESCE(p.synced_to_employee_checkin, 0) AS synced,
-            p.device_id AS punch_device_id,
-            l.name AS log_name,
-            l.employee_no,
-            l.event_date,
-            l.device_id AS log_device_id
-        FROM `tabBiometric Attendance Punch Table` p
-        JOIN `tabBiometric Attendance Log` l ON l.name = p.parent
-        WHERE COALESCE(p.synced_to_employee_checkin, 0) = 0
-        ORDER BY l.employee_no, l.event_date, p.punch_time
-        """,
-        as_dict=True,
-    )
+    punch_device_select = "p.device_id AS punch_device_id" if punch_has_device_id else "NULL AS punch_device_id"
+    log_device_select = "l.device_id AS log_device_id" if log_has_device_id else "NULL AS log_device_id"
+
+    if punch_has_synced_flag:
+        punches_query = """
+            SELECT
+                p.name AS punch_name,
+                p.punch_time,
+                p.punch_type,
+                COALESCE(p.synced_to_employee_checkin, 0) AS synced,
+                {punch_device_select},
+                l.name AS log_name,
+                l.employee_no,
+                l.event_date,
+                {log_device_select}
+            FROM `tabBiometric Attendance Punch Table` p
+            JOIN `tabBiometric Attendance Log` l ON l.name = p.parent
+            WHERE COALESCE(p.synced_to_employee_checkin, 0) = 0
+            ORDER BY l.employee_no, l.event_date, p.punch_time
+        """.format(
+            punch_device_select=punch_device_select,
+            log_device_select=log_device_select,
+        )
+    else:
+        punches_query = """
+            SELECT
+                p.name AS punch_name,
+                p.punch_time,
+                p.punch_type,
+                0 AS synced,
+                {punch_device_select},
+                l.name AS log_name,
+                l.employee_no,
+                l.event_date,
+                {log_device_select}
+            FROM `tabBiometric Attendance Punch Table` p
+            JOIN `tabBiometric Attendance Log` l ON l.name = p.parent
+            ORDER BY l.employee_no, l.event_date, p.punch_time
+        """.format(
+            punch_device_select=punch_device_select,
+            log_device_select=log_device_select,
+        )
+
+    # Get punches joined with their parent logs.
+    # If synced flag does not exist yet, process all punches.
+    punches = frappe.db.sql(punches_query, as_dict=True)
 
     if not punches:
         return 0, 0
@@ -149,12 +182,13 @@ def sync_punches_to_employee_checkin():
             )
             if exists:
                 already_synced += 1
-                frappe.db.set_value(
-                    "Biometric Attendance Punch Table",
-                    punch["punch_name"],
-                    "synced_to_employee_checkin",
-                    1,
-                )
+                if punch_has_synced_flag:
+                    frappe.db.set_value(
+                        "Biometric Attendance Punch Table",
+                        punch["punch_name"],
+                        "synced_to_employee_checkin",
+                        1,
+                    )
                 return
 
             checkin = frappe.new_doc("Employee Checkin")
@@ -186,15 +220,17 @@ def sync_punches_to_employee_checkin():
             checkin.insert(ignore_permissions=True)
 
             # Mark this punch as synced and link to Employee Checkin if possible
-            update_values = {"synced_to_employee_checkin": 1}
+            update_values = {}
+            if punch_has_synced_flag:
+                update_values["synced_to_employee_checkin"] = 1
             if punch_has_employee_checkin:
                 update_values["employee_checkin"] = checkin.name
-
-            frappe.db.set_value(
-                "Biometric Attendance Punch Table",
-                punch["punch_name"],
-                update_values,
-            )
+            if update_values:
+                frappe.db.set_value(
+                    "Biometric Attendance Punch Table",
+                    punch["punch_name"],
+                    update_values,
+                )
 
             created += 1
 
@@ -212,12 +248,13 @@ def sync_punches_to_employee_checkin():
             if p["punch_name"] not in {first["punch_name"], last["punch_name"]}
         ]
         for p in middle:
-            frappe.db.set_value(
-                "Biometric Attendance Punch Table",
-                p["punch_name"],
-                "synced_to_employee_checkin",
-                1,
-            )
+            if punch_has_synced_flag:
+                frappe.db.set_value(
+                    "Biometric Attendance Punch Table",
+                    p["punch_name"],
+                    "synced_to_employee_checkin",
+                    1,
+                )
 
     frappe.db.commit()
     return created, already_synced

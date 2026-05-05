@@ -1,5 +1,6 @@
 import frappe
 import requests
+import re
 from frappe.model.document import Document
 from requests.auth import HTTPDigestAuth
 from datetime import datetime, timedelta
@@ -10,15 +11,53 @@ from biometric_integration.employee_checkin_sync import (
 
 
 class BiometricIntegrationSettings(Document):
-    pass
+    def validate(self):
+        # Keep device host clean (no protocol/path) and ensure active rows are complete.
+        for d in (self.devices or []):
+            d.ip_address = _normalize_device_host(getattr(d, "ip_address", ""))
+
+            pwd = (
+                d.get_password("password") if hasattr(d, "get_password") else None
+            ) or getattr(d, "password", None)
+
+            if getattr(d, "is_active", 0) and (
+                not d.ip_address or not d.username or not pwd
+            ):
+                frappe.throw(
+                    f"Device row #{d.idx}: IP, Username and Password are required for active devices."
+                )
+
+
+def _normalize_device_host(raw_ip):
+    ip = (raw_ip or "").strip()
+    ip = re.sub(r"^https?://", "", ip, flags=re.IGNORECASE)
+    ip = ip.split("/")[0].strip()
+    return ip
+
+
+def _post_device_request(url, username, password, payload, timeout):
+    try:
+        return requests.post(
+            url,
+            auth=HTTPDigestAuth(username, password),
+            headers={"Content-Type": "application/json"},
+            json=payload,
+            verify=False,
+            timeout=timeout,
+        )
+    except requests.exceptions.ConnectTimeout:
+        raise RuntimeError("Connection timed out")
+    except requests.exceptions.ReadTimeout:
+        raise RuntimeError("Device response timeout")
+    except requests.exceptions.ConnectionError as e:
+        raise RuntimeError(f"Connection failed: {str(e)}")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"HTTP error: {str(e)}")
 
 
 def _get_device_configs(settings):
     """Return a list of (label, ip, username, password) for all active devices.
-
-    Priority:
-    - If child table has active rows -> use those
-    - Else -> use main IP/username/password from settings
+    Only active rows from the Devices child table are used.
     """
     devices = []
 
@@ -27,16 +66,11 @@ def _get_device_configs(settings):
         for d in settings.devices:
             # Expecting fields: device, ip_address, username, password, is_active
             if getattr(d, "is_active", 0):
-                ip = d.ip_address
-                username = d.username or settings.username
+                ip = _normalize_device_host(d.ip_address)
+                username = d.username
                 pwd = d.get_password("password") if hasattr(d, "get_password") else d.password
-                if ip:
+                if ip and username and pwd:
                     devices.append((d.device or ip, ip, username, pwd))
-
-    # Fallback to main IP if no active child devices
-    if not devices and settings.ip:
-        pwd = settings.get_password("password")
-        devices.append(("Main Device", settings.ip, settings.username, pwd))
 
     return devices
 
@@ -68,13 +102,12 @@ def _sync_for_single_device(settings, label, ip, username, password, start_time,
         }
     }
 
-    response = requests.post(
-        url,
-        auth=HTTPDigestAuth(username, password),
-        headers=headers,
-        json=payload,
-        verify=False,
-        timeout=600,
+    response = _post_device_request(
+        url=url,
+        username=username,
+        password=password,
+        payload=payload,
+        timeout=30,
     )
 
     if response.status_code != 200:
@@ -101,13 +134,12 @@ def _sync_for_single_device(settings, label, ip, username, password, start_time,
         payload["AcsEventCond"]["searchResultPosition"] = position
         payload["AcsEventCond"]["maxResults"] = batch_size
 
-        response = requests.post(
-            url,
-            auth=HTTPDigestAuth(username, password),
-            headers=headers,
-            json=payload,
-            verify=False,
-            timeout=600,
+        response = _post_device_request(
+            url=url,
+            username=username,
+            password=password,
+            payload=payload,
+            timeout=30,
         )
 
         if response.status_code != 200:
@@ -195,6 +227,54 @@ def _sync_for_single_device(settings, label, ip, username, password, start_time,
 
 
 @frappe.whitelist()
+def test_connection():
+    """
+    Test connectivity to all configured devices.
+    Returns a list of dicts: {label, ip, status, message}
+    """
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    settings = frappe.get_doc("Biometric Integration Settings", "Biometric Integration Settings")
+    device_configs = _get_device_configs(settings)
+
+    if not device_configs:
+        frappe.throw("No active device configured. Add a device in the Devices table or fill in the main IP.")
+
+    results = []
+    for label, ip, username, password in device_configs:
+        url = f"http://{ip}/ISAPI/AccessControl/AcsEvent?format=json"
+        try:
+            resp = _post_device_request(
+                url=url,
+                username=username,
+                password=password,
+                payload={
+                    "AcsEventCond": {
+                        "searchID": "test",
+                        "searchResultPosition": 0,
+                        "maxResults": 1,
+                        "major": 5,
+                        "minor": 75,
+                        "startTime": "2000-01-01T00:00:00+08:00",
+                        "endTime": "2000-01-02T00:00:00+08:00",
+                    }
+                },
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                results.append({"label": label, "ip": ip, "status": "success", "message": f"Connected (HTTP 200)"})
+            elif resp.status_code == 401:
+                results.append({"label": label, "ip": ip, "status": "error", "message": f"Authentication failed (HTTP 401) — check username/password"})
+            else:
+                results.append({"label": label, "ip": ip, "status": "error", "message": f"Unexpected response: HTTP {resp.status_code}"})
+        except Exception as e:
+            results.append({"label": label, "ip": ip, "status": "error", "message": str(e)})
+
+    return results
+
+
+@frappe.whitelist()
 def sync_attendance():
     """
     Manual sync from device(s) AND directly to Employee Checkin.
@@ -238,10 +318,13 @@ def sync_attendance_device_only():
 
     device_configs = _get_device_configs(settings)
     if not device_configs:
-        frappe.throw("No device configured (no IP in settings and no active rows in Devices table).")
+        frappe.throw(
+            "No active device configured in Devices table, or required credentials are missing."
+        )
 
     total_count = 0
     total_skipped = 0
+    failed_devices = []
 
     frappe.publish_progress(
         0,
@@ -256,17 +339,23 @@ def sync_attendance_device_only():
             description=f"Syncing device {idx}/{len(device_configs)}: {label} ({ip})",
         )
 
-        c, s = _sync_for_single_device(
-            settings=settings,
-            label=label,
-            ip=ip,
-            username=username,
-            password=password,
-            start_time=start_time,
-            end_time=end_time,
-        )
-        total_count += c
-        total_skipped += s
+        try:
+            c, s = _sync_for_single_device(
+                settings=settings,
+                label=label,
+                ip=ip,
+                username=username,
+                password=password,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            total_count += c
+            total_skipped += s
+        except Exception as e:
+            err = f"{label} ({ip}): {str(e)}"
+            failed_devices.append(err)
+            frappe.log_error(frappe.get_traceback(), f"Device sync failed: {label} ({ip})")
+            continue
 
     # Save all logs/punches
     frappe.db.commit()
@@ -275,6 +364,8 @@ def sync_attendance_device_only():
         f"{total_count} attendance records synced from devices; "
         f"{total_skipped} duplicate punches skipped."
     )
+    if failed_devices:
+        msg += f" Failed devices: {len(failed_devices)}. " + " | ".join(failed_devices)
 
     frappe.publish_progress(100, title="Attendance Sync", description=msg)
     return msg
