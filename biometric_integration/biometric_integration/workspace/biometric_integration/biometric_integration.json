@@ -101,7 +101,7 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Biometric Daily Report",
    "link_count": 0,
    "link_to": "Biometric Daily Report",
@@ -112,7 +112,7 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Biometric Monthly Report",
    "link_count": 0,
    "link_to": "Biometric Monthly Report",
@@ -122,7 +122,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-05-05 14:15:18.281692",
+ "modified": "2026-05-05 21:09:46.199934",
  "modified_by": "Administrator",
  "module": "Biometric Integration",
  "name": "Biometric Integration",
@@ -172,17 +172,15 @@
    "color": "Blue",
    "doc_view": "",
    "label": "Daily Report",
-   "link_to": "Biometric Daily Report",
-   "report_ref_doctype": "Biometric Attendance Log",
-   "type": "Report"
+   "type": "URL",
+   "url": "/app/query-report/Biometric%20Daily%20Report"
   },
   {
    "color": "Purple",
    "doc_view": "",
    "label": "Monthly Report",
-   "link_to": "Biometric Monthly Report",
-   "report_ref_doctype": "Biometric Attendance Log",
-   "type": "Report"
+   "type": "URL",
+   "url": "/app/query-report/Biometric%20Monthly%20Report"
   },
   {
    "color": "Dark Blue",

@@ -4,6 +4,8 @@ import frappe
 
 
 WORKSPACE_NAME = "Biometric Integration"
+DAILY_REPORT_URL = "/app/query-report/Biometric%20Daily%20Report"
+MONTHLY_REPORT_URL = "/app/query-report/Biometric%20Monthly%20Report"
 
 
 def _workspace_content():
@@ -140,21 +142,19 @@ def create_or_update_biometric_workspace():
     ws.append(
         "shortcuts",
         {
-            "type": "Report",
+            "type": "URL",
             "label": "Daily Report",
-            "link_to": "Biometric Daily Report",
+            "url": DAILY_REPORT_URL,
             "color": "Blue",
-            "report_ref_doctype": "Biometric Attendance Log",
         },
     )
     ws.append(
         "shortcuts",
         {
-            "type": "Report",
+            "type": "URL",
             "label": "Monthly Report",
-            "link_to": "Biometric Monthly Report",
+            "url": MONTHLY_REPORT_URL,
             "color": "Purple",
-            "report_ref_doctype": "Biometric Attendance Log",
         },
     )
     ws.append(
@@ -237,7 +237,7 @@ def create_or_update_biometric_workspace():
             "link_type": "Report",
             "link_to": "Biometric Daily Report",
             "report_ref_doctype": "Biometric Attendance Log",
-            "is_query_report": 0,
+            "is_query_report": 1,
         },
     )
     ws.append(
@@ -248,7 +248,7 @@ def create_or_update_biometric_workspace():
             "link_type": "Report",
             "link_to": "Biometric Monthly Report",
             "report_ref_doctype": "Biometric Attendance Log",
-            "is_query_report": 0,
+            "is_query_report": 1,
         },
     )
 

@@ -1,13 +1,37 @@
 import frappe
 from frappe import _
 from datetime import datetime, timedelta
+from frappe.utils import get_first_day, get_last_day, nowdate
+
+
+def _to_date_string(value):
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d')
+    if hasattr(value, 'strftime'):
+        return value.strftime('%Y-%m-%d')
+    return str(value)
 
 def execute(filters=None):
-    if not filters or not filters.get('date_range'):
-        frappe.throw(_('Please select Date Range'))
-    
-    from_date = datetime.strptime(filters.get('date_range')[0], '%Y-%m-%d')
-    to_date = datetime.strptime(filters.get('date_range')[1], '%Y-%m-%d')
+    if not filters:
+        filters = {}
+
+    date_range = filters.get('date_range')
+    if not date_range:
+        today = nowdate()
+        date_range = [get_first_day(today), get_last_day(today)]
+
+    if isinstance(date_range, str):
+        # Some clients may send Date Range as "YYYY-MM-DD,YYYY-MM-DD"
+        date_range = [d.strip() for d in date_range.split(',') if d.strip()]
+
+    if not isinstance(date_range, (list, tuple)) or len(date_range) != 2:
+        frappe.throw(_('Please select a valid Date Range'))
+
+    from_date_str = _to_date_string(date_range[0])
+    to_date_str = _to_date_string(date_range[1])
+
+    from_date = datetime.strptime(from_date_str, '%Y-%m-%d')
+    to_date = datetime.strptime(to_date_str, '%Y-%m-%d')
     
     # Create columns for employee details
     columns = [
@@ -55,8 +79,8 @@ def execute(filters=None):
         LEFT JOIN `tabDepartment` d ON e.department = d.name        
         WHERE bal.event_date BETWEEN %(from_date)s AND %(to_date)s
     """, {
-        "from_date": filters.get('date_range')[0],
-        "to_date": filters.get('date_range')[1]
+        "from_date": from_date_str,
+        "to_date": to_date_str
     }, as_dict=True)
     
     # Sort employees by their employee number

@@ -7,7 +7,8 @@ frappe.query_reports["Biometric Daily Report"] = {
             fieldname: "date",
             label: __("Date"),
             fieldtype: "Date",
-            reqd: 1 // Makes the date field mandatory
+            default: frappe.datetime.get_today(),
+            reqd: 1
         }
     ]
 };

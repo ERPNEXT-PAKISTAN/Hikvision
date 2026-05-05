@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from datetime import datetime, timedelta
+from frappe.utils import nowdate
 
 
 def execute(filters=None):
@@ -10,8 +11,11 @@ def execute(filters=None):
         {"fieldname": "total_duration", "label": _("Total Hours"), "fieldtype": "Data", "width": 75, "align": "center"}
     ]
 
-    if not filters or not filters.get("date"):
-        frappe.throw(_("Please select a date."))
+    if not filters:
+        filters = {}
+
+    if not filters.get("date"):
+        filters["date"] = nowdate()
 
     selected_date = filters.get("date")
     formatted_date = datetime.strptime(selected_date, "%Y-%m-%d").strftime("%d-%b-%Y")

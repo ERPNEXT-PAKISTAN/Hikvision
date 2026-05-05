@@ -7,6 +7,10 @@ frappe.query_reports["Biometric Monthly Report"] = {
             fieldname: "date_range",
             label: __("Enter Your Date Range"),
             fieldtype: "Date Range",
+            default: [
+                frappe.datetime.month_start(),
+                frappe.datetime.month_end(),
+            ],
         },
     ]
 };
