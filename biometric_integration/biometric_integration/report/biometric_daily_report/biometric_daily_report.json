@@ -21,6 +21,12 @@
  "roles": [
   {
    "role": "System Manager"
+  },
+  {
+   "role": "HR Manager"
+  },
+  {
+   "role": "HR User"
   }
  ],
  "timeout": 0
